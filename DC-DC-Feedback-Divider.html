@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DC-DC Feedback Divider Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f4f0;
+      --surface:   #ffffff;
+      --surface2:  #f0efe9;
+      --border:    rgba(0,0,0,0.10);
+      --border2:   rgba(0,0,0,0.18);
+      --text:      #1a1917;
+      --text2:     #5a5855;
+      --text3:     #9a9895;
+      --accent:    #2a52be;
+      --accent-bg: #eef1fb;
+      --green:     #0f6e56; --green-bg: #e1f5ee;
+      --yellow:    #854f0b; --yellow-bg: #faeeda;
+      --red:       #a32d2d; --red-bg:   #fcebeb;
+      --purple:    #3c3489; --purple-bg: #eeedfe;
+      --radius:    8px;
+      --radius-lg: 12px;
+      --mono:      'JetBrains Mono', 'Fira Mono', 'Cascadia Code', 'Consolas', monospace;
+      --sans:      'DM Sans', 'Outfit', system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:        #141412;
+        --surface:   #1e1d1a;
+        --surface2:  #252420;
+        --border:    rgba(255,255,255,0.08);
+        --border2:   rgba(255,255,255,0.14);
+        --text:      #e8e6e0;
+        --text2:     #9a9890;
+        --text3:     #5a5855;
+        --accent:    #7f99e8;
+        --accent-bg: #1a2040;
+        --green:     #1d9e75; --green-bg: #04342c;
+        --yellow:    #ef9f27; --yellow-bg: #412402;
+        --red:       #e24b4a; --red-bg:   #501313;
+        --purple:    #afa9ec; --purple-bg: #26215c;
+      }
+    }
+
+    html { font-size: 16px; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.25rem 1rem 2rem;
+    }
+
+    .page { max-width: 1200px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 1.25rem;
+      display: flex; align-items: baseline; gap: 1rem;
+    }
+    .app-title {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text3);
+    }
+    h1 { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; }
+    h1 span { color: var(--accent); }
+
+    /* Two-column layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .col-inputs { display: flex; flex-direction: column; gap: 0.625rem; }
+    .col-result { position: sticky; top: 1rem; }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+    }
+
+    .section-title {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text3); margin-bottom: 0.75rem;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 0.875rem 0; }
+
+    @media (max-width: 720px) {
+      .two-col { grid-template-columns: 1fr; }
+      .col-result { position: static; }
+    }
+
+    /* Form */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label, .flabel { font-size: 12px; font-weight: 500; color: var(--text2); }
+    .unit-hint { font-size: 11px; color: var(--text3); }
+
+    input[type=number] {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 7px 10px;
+      width: 80px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type=number]:focus { border-color: var(--accent); }
+    input[type=number]::placeholder { color: var(--text3); }
+    input.inp-warn  { border-color: var(--yellow) !important; }
+    input.inp-error { border-color: var(--red)    !important; }
+    input.inp-ok    { border-color: var(--border2); }
+    .inp-hint {
+      font-size: 11px; color: var(--red); margin-top: 4px;
+      display: none;
+    }
+    .inp-hint.visible { display: block; }
+    .vout-error-hints { margin-top: 8px; }
+    .vout-error-hints .inp-hint { display: block; }
+
+    /* Series toggles */
+    .series-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+    .series-toggle {
+      border: 1px solid var(--border2); border-radius: var(--radius);
+      cursor: pointer; overflow: hidden; transition: border-color 0.15s;
+    }
+    .series-toggle input { display: none; }
+    .series-toggle-label {
+      display: block; padding: 6px 14px;
+      font-family: var(--mono); font-size: 12px; font-weight: 600;
+      color: var(--text2); cursor: pointer;
+      transition: background 0.15s, color 0.15s; user-select: none;
+    }
+    .series-toggle.on { border-color: var(--accent); }
+    .series-toggle.on .series-toggle-label { background: var(--accent-bg); color: var(--accent); }
+    .pool-count { font-size: 11px; color: var(--text3); margin-top: 8px; font-family: var(--mono); }
+
+    /* Segmented control */
+    .seg-ctrl {
+      display: flex; border: 1px solid var(--border2);
+      border-radius: var(--radius); overflow: hidden; width: fit-content;
+    }
+    .seg-btn {
+      background: transparent; border: none;
+      border-right: 1px solid var(--border2);
+      padding: 6px 14px; font-size: 12px; font-weight: 500;
+      color: var(--text2); cursor: pointer; font-family: var(--sans);
+      white-space: nowrap; transition: background 0.12s, color 0.12s;
+    }
+    .seg-btn:last-child { border-right: none; }
+    .seg-btn:hover { background: var(--surface2); }
+    .seg-btn.active { background: var(--surface2); color: var(--text); }
+
+    /* R1 row */
+    .r1-row { display: flex; align-items: flex-start; gap: 14px; }
+    .r1-mode-wrap { display: flex; flex-direction: column; gap: 5px; }
+    .r1-inputs { display: flex; align-items: flex-start; gap: 8px; flex: 1; }
+    .r1-iw { display: flex; flex-direction: column; gap: 5px; }
+    .r1-iw input { width: 80px; }
+    .r1-label-center { text-align: center; }
+    .r1-input-inline { display: flex; align-items: center; gap: 6px; }
+    .r1-input-inline input { width: 80px; }
+    .r1-unit { font-size: 12px; color: var(--text3); white-space: nowrap; }
+    .range-sep { padding-top: 22px; color: var(--text2); font-size: 16px; line-height: 1; }
+
+    /* Vout table */
+    .vout-table-wrap { overflow-x: auto; }
+    .vout-table { border-collapse: collapse; }
+    .vout-table th {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--text3);
+      padding: 0 6px 7px; text-align: center; white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .vout-table th.empty-th { color: var(--border2); }
+    .vout-table td { padding: 8px 6px 0; text-align: center; vertical-align: top; }
+    .vout-table td input[type=number] {
+      width: 60px; text-align: center; font-size: 13px; padding: 7px 6px;
+    }
+    .vout-table td input.empty-col {
+      border-style: dashed; color: var(--text3); background: transparent;
+    }
+    .vout-table td input.empty-col:focus {
+      border-style: solid; background: var(--surface2); color: var(--text);
+    }
+    .vout-table .unit-row td {
+      font-size: 11px; color: var(--text3); padding-top: 4px; text-align: center;
+    }
+    .vout-table .weight-row { display: none; }
+    .vout-table .weight-row td { padding: 6px 6px 0; text-align: center; vertical-align: top; }
+    .vout-table .weight-row td input[type=number] {
+      width: 60px; text-align: center; font-size: 12px; padding: 5px 5px;
+      border-color: var(--yellow);
+    }
+    .vout-table .weight-row td input[type=number]:focus { border-color: var(--accent); }
+    .vout-table .weight-label { display: none; font-size: 10px; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase; color: var(--yellow);
+      margin-top: 8px; }
+    body.mode-wav .vout-table .weight-row { display: table-row; }
+    body.mode-wav .vout-table .weight-label { display: block; }
+
+    /* Error */
+
+
+    /* Results */
+    .results-section { display: none; }
+
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px; margin-bottom: 1.25rem;
+    }
+    .metric {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 11px;
+    }
+    .metric-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--text3); margin-bottom: 5px;
+    }
+    .metric-value {
+      font-family: var(--mono); font-size: 14px; font-weight: 600;
+      color: var(--text); line-height: 1.2;
+    }
+    .metric-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 4px; }
+    .metric.err-green  .metric-value { color: var(--green); }
+    .metric.err-yellow .metric-value { color: var(--yellow); }
+    .metric.err-red    .metric-value { color: var(--red); }
+    .metric.err-purple .metric-value { color: var(--purple); }
+
+    .err-chip {
+      display: inline-block; font-family: var(--mono);
+      font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+    }
+    .err-green  { background: var(--green-bg);  color: var(--green); }
+    .err-yellow { background: var(--yellow-bg); color: var(--yellow); }
+    .err-red    { background: var(--red-bg);    color: var(--red); }
+    .err-purple { background: var(--purple-bg); color: var(--purple); }
+
+    .schematic-wrap { overflow-x: auto; display: flex; justify-content: center; }
+    .schematic-wrap svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="app-title">Resistor Calculator</div>
+    <h1>DC-DC Feedback <span>Divider</span></h1>
+  </header>
+
+  <div class="two-col">
+
+    <!-- Left column: inputs -->
+    <div class="col-inputs">
+
+      <section>
+        <div class="section-title">SELECT IC VOLTAGE REFERENCE</div>
+        <div class="field">
+          <label>Vref — IC feedback reference</label>
+          <input type="number" id="v-ref" data-hint="hint-vref" placeholder="e.g. 1.25" step="any" />
+          <div class="unit-hint">volts (fixed internal reference)</div>
+          <div class="inp-hint" id="hint-vref"></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">SELECT DESIRED OUTPUT VOLTAGES</div>
+        <div class="vout-table-wrap">
+          <table class="vout-table" id="vout-table">
+            <thead id="vout-thead"></thead>
+            <tbody id="vout-tbody"></tbody>
+          </table>
+        </div>
+        <div class="vout-error-hints" id="vout-error-hints"></div>
+      </section>
+
+
+      <section>
+        <div class="section-title">SELECT RESISTOR POOL</div>
+        <div class="series-toggles" id="series-toggles"></div>
+        <div class="pool-count" id="pool-count"></div>
+      </section>
+
+
+      <section>
+        <div class="section-title">SELECT BASE RESISTOR</div>
+        <div class="r1-row">
+          <div class="r1-mode-wrap">
+            <div class="flabel r1-label-center">Mode</div>
+            <div class="seg-ctrl" id="r1-mode-ctrl">
+              <button class="seg-btn active" data-m="fixed" title="Lock R1 to a specific standard resistor value. The calculator will only find solutions using exactly this resistor.">Fixed</button>
+              <button class="seg-btn" data-m="range" title="Allow R1 to be any standard resistor value within a kΩ range. The calculator searches all candidates and picks the one producing the lowest error.">Range</button>
+            </div>
+          </div>
+          <div class="r1-inputs" id="r1-fixed-input">
+            <div class="r1-iw">
+              <div class="flabel r1-label-center">Value</div>
+              <div class="r1-input-inline">
+                <input type="number" id="r-fixed" placeholder="e.g. 10" step="any" min="0" />
+                <span class="r1-unit">kΩ</span>
+              </div>
+            </div>
+          </div>
+          <div class="r1-inputs" id="r1-range-input" style="display:none;">
+            <div class="r1-iw">
+              <div class="flabel r1-label-center">Min</div>
+              <div class="r1-input-inline">
+                <input type="number" id="r-min" placeholder="min" step="any" min="0" />
+              </div>
+            </div>
+            <div class="range-sep">–</div>
+            <div class="r1-iw">
+              <div class="flabel r1-label-center">Max</div>
+              <div class="r1-input-inline">
+                <input type="number" id="r-max" placeholder="max" step="any" min="0" />
+                <span class="r1-unit">kΩ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="inp-hint" id="hint-r1"></div>
+      </section>
+
+
+      <section>
+        <div class="section-title">SELECT ERROR OPTIMIZATION MODE</div>
+        <div class="seg-ctrl" id="opt-mode-ctrl">
+          <button class="seg-btn active" data-o="avg" title="Minimises the arithmetic mean of all output errors. Balanced across all voltages, but a single large error can be hidden by good performance on others.">Average</button>
+          <button class="seg-btn" data-o="max" title="Minimises the worst-case error across all outputs. Guarantees no single voltage rail is left far off target — ideal when every rail has a strict tolerance budget.">Maximum</button>
+          <button class="seg-btn" data-o="sse" title="Minimises the sum of squared errors. Penalises large individual errors more heavily than the average, pushing towards balanced solutions with no outliers.">Sum of Squares</button>
+          <button class="seg-btn" data-o="wav" title="Minimises a weighted average of errors. Assign higher weights to the rails that matter most — their errors will count proportionally more in the optimisation.">Weighted Average</button>
+        </div>
+      </section>
+
+
+    </div><!-- /col-inputs -->
+
+    <!-- Right column: result -->
+    <div class="col-result">
+      <section class="results-section" id="results-section">
+        <div class="section-title">Best solution</div>
+        <div class="schematic-wrap">
+          <svg id="schematic-svg" xmlns="http://www.w3.org/2000/svg" style="display:block;"></svg>
+        </div>
+      </section>
+      <!-- Placeholder shown before any result is available -->
+      <div id="result-placeholder" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2rem 1.5rem;text-align:center;color:var(--text3);font-size:13px;">
+        Fill in the inputs on the left to see the solution here.
+      </div>
+    </div><!-- /col-result -->
+
+  </div><!-- /two-col -->
+
+</div>
+<script>
+const SERIES_DEFS=[
+  {name:'E12', base:[1.0,1.2,1.5,1.8,2.2,2.7,3.3,3.9,4.7,5.6,6.8,8.2]},
+  {name:'E24', base:[1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1]},
+  {name:'E48', base:[1.00,1.05,1.10,1.15,1.21,1.27,1.33,1.40,1.47,1.54,1.62,1.69,1.78,1.87,1.96,2.05,2.15,2.26,2.37,2.49,2.61,2.74,2.87,3.01,3.16,3.32,3.48,3.65,3.83,4.02,4.22,4.42,4.64,4.87,5.11,5.36,5.62,5.90,6.19,6.49,6.81,7.15,7.50,7.87,8.25,8.66,9.09,9.53]},
+  {name:'E96', base:[1.00,1.02,1.05,1.07,1.10,1.13,1.15,1.18,1.21,1.24,1.27,1.30,1.33,1.37,1.40,1.43,1.47,1.50,1.54,1.58,1.62,1.65,1.69,1.74,1.78,1.82,1.87,1.91,1.96,2.00,2.05,2.10,2.15,2.21,2.26,2.32,2.37,2.43,2.49,2.55,2.61,2.67,2.74,2.80,2.87,2.94,3.01,3.09,3.16,3.24,3.32,3.40,3.48,3.57,3.65,3.74,3.83,3.92,4.02,4.12,4.22,4.32,4.42,4.53,4.64,4.75,4.87,4.99,5.11,5.23,5.36,5.49,5.62,5.76,5.90,6.04,6.19,6.34,6.49,6.65,6.81,6.98,7.15,7.32,7.50,7.68,7.87,8.06,8.25,8.45,8.66,8.87,9.09,9.31,9.53,9.76]},
+  {name:'E192',base:[1.00,1.01,1.02,1.04,1.05,1.06,1.07,1.09,1.10,1.11,1.13,1.14,1.15,1.17,1.18,1.20,1.21,1.23,1.24,1.26,1.27,1.29,1.30,1.32,1.33,1.35,1.37,1.38,1.40,1.42,1.43,1.45,1.47,1.49,1.50,1.52,1.54,1.56,1.58,1.60,1.62,1.64,1.65,1.67,1.69,1.72,1.74,1.76,1.78,1.80,1.82,1.84,1.87,1.89,1.91,1.93,1.96,1.98,2.00,2.03,2.05,2.08,2.10,2.13,2.15,2.18,2.21,2.23,2.26,2.29,2.32,2.34,2.37,2.40,2.43,2.46,2.49,2.52,2.55,2.58,2.61,2.64,2.67,2.71,2.74,2.77,2.80,2.84,2.87,2.91,2.94,2.98,3.01,3.05,3.09,3.12,3.16,3.20,3.24,3.28,3.32,3.36,3.40,3.44,3.48,3.52,3.57,3.61,3.65,3.70,3.74,3.79,3.83,3.88,3.92,3.97,4.02,4.07,4.12,4.17,4.22,4.27,4.32,4.37,4.42,4.48,4.53,4.59,4.64,4.70,4.75,4.81,4.87,4.93,4.99,5.05,5.11,5.17,5.23,5.30,5.36,5.42,5.49,5.56,5.62,5.69,5.76,5.83,5.90,5.97,6.04,6.12,6.19,6.26,6.34,6.42,6.49,6.57,6.65,6.73,6.81,6.90,6.98,7.06,7.15,7.23,7.32,7.41,7.50,7.59,7.68,7.77,7.87,7.96,8.06,8.16,8.25,8.35,8.45,8.56,8.66,8.76,8.87,8.98,9.09,9.20,9.31,9.42,9.53,9.65,9.76,9.88]},
+];
+const DECADES=[0.001,0.01,0.1,1,10,100,1000,10000];
+const activeState={E12:true,E24:true,E48:false,E96:false,E192:false};
+let r1Mode='fixed';
+let optMode='avg';  // avg | max | sse | wav
+
+// voutValues: array where valid entries are numbers, empty/pending are NaN.
+// Always maintains exactly one trailing NaN as the "add" slot.
+let voutValues=[NaN];
+// voutWeights: parallel array of weights (numbers), default 1.0
+let voutWeights=[1.0];
+
+function sigFig(x,n){if(x===0)return 0;const d=Math.ceil(Math.log10(Math.abs(x)));const f=Math.pow(10,n-d);return Math.round(x*f)/f;}
+function buildPool(){const seen=new Set();const vals=[];for(const s of SERIES_DEFS){if(!activeState[s.name])continue;for(const d of DECADES)for(const b of s.base){const v=sigFig(b*d,3);const k=v.toString();if(!seen.has(k)){seen.add(k);vals.push(v);}}}vals.sort((a,b)=>a-b);return vals;}
+function inPool(pool,v){return pool.some(x=>Math.abs(x-v)/v<1e-4);}
+function nearest(pool,v){let best=pool[0],bestD=Infinity;for(const x of pool){const d=Math.abs(x-v);if(d<bestD){bestD=d;best=x;}}return best;}
+function errClass(e){if(e<0.1)return 'err-green';if(e<0.5)return 'err-yellow';return 'err-red';}
+function errSvgColor(e){const dk=window.matchMedia('(prefers-color-scheme: dark)').matches;if(e<0.1)return dk?'#1D9E75':'#0F6E56';if(e<0.5)return dk?'#EF9F27':'#854F0B';return dk?'#E24B4A':'#A32D2D';}
+function fmtR(v){if(v>=1000)return parseFloat(v/1000).toPrecision(4).replace(/\.?0+$/,'')+' MΩ';if(v<1)return parseFloat(v*1000).toPrecision(4).replace(/\.?0+$/,'')+' Ω';return parseFloat(v).toPrecision(4).replace(/\.?0+$/,'')+' kΩ';}
+function scoreResult(vr, weights){
+  const errs=vr.map(r=>r.err);
+  if(optMode==='avg') return errs.reduce((a,b)=>a+b,0)/errs.length;
+  if(optMode==='max') return Math.max(...errs);
+  if(optMode==='sse') return errs.reduce((a,b)=>a+b*b,0);
+  if(optMode==='wav'){
+    const w=weights||errs.map(()=>1);
+    const wSum=w.reduce((a,b)=>a+b,0);
+    return errs.reduce((s,e,i)=>s+e*(w[i]??1),0)/wSum;
+  }
+  return errs.reduce((a,b)=>a+b,0)/errs.length;
+}
+
+function solveIdealSegments(r1,voutsDesc,vref){
+  const rBelows=voutsDesc.map(vo=>r1/(vo/vref-1));
+  for(const rb of rBelows)if(rb<=0)return null;
+  for(let i=1;i<rBelows.length;i++)if(rBelows[i]<=rBelows[i-1])return null;
+  const segs=[r1,rBelows[0]];
+  for(let i=1;i<rBelows.length;i++)segs.push(rBelows[i]-rBelows[i-1]);
+  return segs;
+}
+
+function evalSegments(segs,voutsDesc,vref){
+  const voutResults=voutsDesc.map((vTarget,i)=>{
+    const rBelow=segs.slice(1,i+2).reduce((a,b)=>a+b,0);
+    const vActual=vref*(segs[0]+rBelow)/rBelow;
+    const err=Math.abs(vActual-vTarget)/vTarget*100;
+    return{vActual,err,vTarget};
+  });
+  return{segments:segs,voutResults};
+}
+
+// Return the K nearest pool values to target (sorted by closeness)
+function nearestK(pool,target,k){
+  return pool
+    .map(v=>({v,d:Math.abs(v-target)}))
+    .sort((a,b)=>a.d-b.d)
+    .slice(0,k)
+    .map(x=>x.v);
+}
+
+// Exhaustive search over K candidates per segment to find best combination
+function snapAndEval(idealSegs,pool,r1,voutsDesc,vref,weights){
+  const K=4; // candidates per segment to try
+  const nSegs=idealSegs.length-1; // number of segments after R1
+
+  // Candidate lists for each segment (indices 1..nSegs)
+  const candidates=idealSegs.slice(1).map(ideal=>nearestK(pool,ideal,K));
+
+  let best=null,bestScore=Infinity;
+
+  // Iterate all combinations via index array
+  const indices=new Array(nSegs).fill(0);
+  while(true){
+    const segs=[r1,...indices.map((ci,si)=>candidates[si][ci])];
+    const result=evalSegments(segs,voutsDesc,vref);
+    const sc=scoreResult(result.voutResults,weights);
+    if(sc<bestScore){bestScore=sc;best=result;}
+
+    // Increment indices (odometer)
+    let pos=nSegs-1;
+    while(pos>=0){
+      indices[pos]++;
+      if(indices[pos]<K) break;
+      indices[pos]=0;
+      pos--;
+    }
+    if(pos<0) break;
+  }
+  return best;
+}
+
+// ── Vout table ────────────────────────────────────────────────────────────────
+function renderVoutTable(){
+  const n=voutValues.length;
+  // Ensure voutWeights is same length
+  while(voutWeights.length<n) voutWeights.push(1.0);
+
+  const thead=document.getElementById('vout-thead');
+  const tbody=document.getElementById('vout-tbody');
+
+  let thHTML='<tr>';
+  for(let i=0;i<n;i++){
+    thHTML+=`<th class="${isNaN(voutValues[i])?'empty-th':''}">Vout ${i+1}</th>`;
+  }
+  thHTML+='</tr>';
+  thead.innerHTML=thHTML;
+
+  let tdHTML='<tr>';
+  for(let i=0;i<n;i++){
+    const empty=isNaN(voutValues[i]);
+    const val=empty?'':voutValues[i];
+    tdHTML+=`<td><input type="number" class="${empty?'empty-col':''}" data-idx="${i}" value="${val}" placeholder="— V" step="any" min="0"/></td>`;
+  }
+  tdHTML+='</tr>';
+
+  let unitHTML='<tr class="unit-row">';
+  for(let i=0;i<n;i++) unitHTML+=`<td>volts</td>`;
+  unitHTML+='</tr>';
+
+  // Weight row (shown only in wav mode)
+  let wHTML='<tr class="weight-row">';
+  for(let i=0;i<n;i++){
+    const empty=isNaN(voutValues[i]);
+    const wval=empty?'':(voutWeights[i]??1.0);
+    wHTML+=`<td><input type="number" class="weight-input${empty?' empty-col':''}" data-widx="${i}" value="${wval}" placeholder="1.0" step="0.01" min="0.01" max="100"/></td>`;
+  }
+  wHTML+='</tr>';
+
+  tbody.innerHTML=tdHTML+unitHTML+wHTML;
+}
+
+document.getElementById('vout-table').addEventListener('input',e=>{
+  const input=e.target;
+  if(input.type!=='number')return;
+
+  // Weight input
+  if(input.classList.contains('weight-input')){
+    const wi=parseInt(input.dataset.widx);
+    if(!isNaN(wi)){
+      const wv=parseFloat(input.value);
+      voutWeights[wi]=isNaN(wv)?1.0:Math.min(100,Math.max(0.01,wv));
+      saveState();calc();
+    }
+    return;
+  }
+
+  const idx=parseInt(input.dataset.idx);
+  if(isNaN(idx))return;
+
+  const v=parseFloat(input.value);
+  const wasEmpty=isNaN(voutValues[idx]);
+
+  if(input.value===''||isNaN(v)){
+    // Cell cleared: compact array, keep one trailing NaN, full re-render is fine
+    voutValues[idx]=NaN;
+    const filled=voutValues.filter(x=>!isNaN(x));
+    const filledWeights=voutWeights.slice(0,voutValues.length).filter((_,i)=>!isNaN(voutValues[i]));
+    voutValues=[...filled,NaN];
+    voutWeights=[...filledWeights,1.0];
+    renderVoutTable();
+  } else {
+    voutValues[idx]=v;
+    input.classList.remove('empty-col');
+    // Update header cell style for this column
+    const thCells=document.querySelectorAll('#vout-thead tr th');
+    if(thCells[idx]) thCells[idx].classList.remove('empty-th');
+
+    // If this was the trailing empty slot, surgically append a new column
+    // without touching the active input (preserves cursor position)
+    if(wasEmpty){
+      const newIdx=voutValues.length;
+      voutValues.push(NaN);
+      voutWeights.push(1.0);
+
+      // Append th to header row
+      const headRow=document.querySelector('#vout-thead tr');
+      const th=document.createElement('th');
+      th.className='empty-th';
+      th.textContent='Vout '+(newIdx+1);
+      headRow.appendChild(th);
+
+      // Append td to input row
+      const inputRow=document.querySelector('#vout-tbody tr:first-child');
+      const td=document.createElement('td');
+      td.innerHTML='<input type="number" class="empty-col" data-idx="'+newIdx+'" placeholder="— V" step="any" min="0"/>';
+      inputRow.appendChild(td);
+
+      // Append td to unit row
+      const unitRow=document.querySelector('#vout-tbody tr.unit-row');
+      const utd=document.createElement('td');
+      utd.textContent='volts';
+      unitRow.appendChild(utd);
+
+      // Append td to weight row
+      const weightRow=document.querySelector('#vout-tbody tr.weight-row');
+      const wtd=document.createElement('td');
+      wtd.innerHTML='<input type="number" class="weight-input empty-col" data-widx="'+newIdx+'" value="" placeholder="1.0" step="0.01" min="0.01" max="100"/>';
+      weightRow.appendChild(wtd);
+    }
+  }
+  calc();
+});
+;
+
+// ── Series toggles ────────────────────────────────────────────────────────────
+function renderToggles(){
+  const c=document.getElementById('series-toggles');c.innerHTML='';
+  for(const s of SERIES_DEFS){
+    const lbl=document.createElement('label');
+    lbl.className='series-toggle'+(activeState[s.name]?' on':'');
+    lbl.innerHTML=`<input type="checkbox" ${activeState[s.name]?'checked':''}><span class="series-toggle-label">${s.name}</span>`;
+    lbl.querySelector('input').addEventListener('change',e=>{
+      activeState[s.name]=e.target.checked;
+      lbl.classList.toggle('on',e.target.checked);
+      updatePoolCount();calc();
+    });
+    c.appendChild(lbl);
+  }
+}
+function updatePoolCount(){const p=buildPool();document.getElementById('pool-count').textContent=p.length+' unique resistor values in pool';}
+
+// ── R1 mode ───────────────────────────────────────────────────────────────────
+document.getElementById('r1-mode-ctrl').addEventListener('click',e=>{
+  const btn=e.target.closest('.seg-btn');if(!btn)return;
+  r1Mode=btn.dataset.m;
+  document.querySelectorAll('#r1-mode-ctrl .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.m===r1Mode));
+  document.getElementById('r1-fixed-input').style.display=r1Mode==='fixed'?'flex':'none';
+  document.getElementById('r1-range-input').style.display=r1Mode==='range'?'flex':'none';
+  calc();
+});
+['r-fixed','r-min','r-max','v-ref'].forEach(id=>document.getElementById(id).addEventListener('input',calc));
+
+// ── Optimisation mode selector ────────────────────────────────────────────────
+document.getElementById('opt-mode-ctrl').addEventListener('click',e=>{
+  const btn=e.target.closest('.seg-btn');if(!btn)return;
+  optMode=btn.dataset.o;
+  document.querySelectorAll('#opt-mode-ctrl .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.o===optMode));
+  // Show/hide weight row via body class
+  document.body.className=optMode==='wav'?'mode-wav':'';
+  saveState();calc();
+});
+
+// ── Main calc ─────────────────────────────────────────────────────────────────
+function calc(){
+  validateInputs();  // always runs first so borders/hints update on every keystroke
+
+  const res=document.getElementById('results-section');
+  const showErr=m=>{
+    res.style.display='none';
+    const ph=document.getElementById('result-placeholder');
+    if(ph) ph.style.display='block';
+  };
+  const hideErr=()=>{};
+
+  const pool=buildPool();
+  if(pool.length===0){return showErr('Select at least one resistor series.');}
+
+  const vref=parseFloat(document.getElementById('v-ref').value);
+  if(isNaN(vref)||vref<=0){hideErr();res.style.display='none';return;}
+
+  const vouts=voutValues.filter(v=>!isNaN(v));
+  if(vouts.length===0){hideErr();res.style.display='none';return;}
+  if(vouts.some(v=>v<=vref))return showErr('All desired output voltages must be greater than Vref.');
+  if(new Set(vouts).size!==vouts.length)return showErr('Duplicate output voltages are not allowed.');
+
+  const voutsDesc=[...vouts].sort((a,b)=>b-a);
+
+  let rFixed,rMin,rMax;
+  if(r1Mode==='fixed'){
+    rFixed=parseFloat(document.getElementById('r-fixed').value);
+    if(isNaN(rFixed)||rFixed<=0){hideErr();res.style.display='none';return;}
+    if(!inPool(pool,rFixed))return showErr(`R1 value ${rFixed} kΩ is not in the selected resistor pool.`);
+  } else {
+    rMin=parseFloat(document.getElementById('r-min').value);
+    rMax=parseFloat(document.getElementById('r-max').value);
+    if(isNaN(rMin)||isNaN(rMax)||rMin<=0||rMax<=0||rMin>=rMax){hideErr();res.style.display='none';return;}
+  }
+  hideErr();
+
+  const r1Candidates=r1Mode==='fixed'?[rFixed]:pool.filter(v=>v>=rMin&&v<=rMax);
+  if(r1Candidates.length===0)return showErr('No resistor values in the pool fall within the R1 range.');
+
+  // Build weights aligned to voutsDesc order
+  const voutsFilled=voutValues.filter(v=>!isNaN(v));
+  const weightsAligned=voutsDesc.map(vd=>{
+    const fi=voutsFilled.indexOf(vd);
+    return fi>=0?(voutWeights[fi]??1.0):1.0;
+  });
+
+  let best=null,bestScore=Infinity;
+  for(const r1 of r1Candidates){
+    const ideal=solveIdealSegments(r1,voutsDesc,vref);
+    if(!ideal)continue;
+    const result=snapAndEval(ideal,pool,r1,voutsDesc,vref,weightsAligned);
+    const sc=scoreResult(result.voutResults,weightsAligned);
+    if(sc<bestScore){bestScore=sc;best=result;}
+  }
+  if(!best)return showErr('Could not find a valid solution. Ensure all outputs are greater than Vref.');
+
+  res.style.display='block';
+  const ph=document.getElementById('result-placeholder');
+  if(ph) ph.style.display='none';
+  drawSchematic(best,voutsDesc,vref);
+}
+
+// ── Input validation styling ──────────────────────────────────────────────────
+function setInputState(el, state, msg){
+  if(!el) return;
+  el.classList.remove('inp-warn','inp-error','inp-ok');
+  if(state) el.classList.add(state);
+  // Update adjacent hint div via data-hint attribute
+  const hintId=el.dataset.hint;
+  const hint=hintId?document.getElementById(hintId):null;
+  if(hint){
+    hint.textContent=msg||'';
+    hint.classList.toggle('visible', state==='inp-error' && !!msg);
+  }
+}
+
+function validateInputs(){
+  const vrefEl=document.getElementById('v-ref');
+  const vref=parseFloat(vrefEl.value);
+
+  // Vref
+  if(vrefEl.value===''){
+    setInputState(vrefEl,'inp-warn');
+  } else if(isNaN(vref)||vref<=0){
+    setInputState(vrefEl,'inp-error','Must be a positive voltage.');
+  } else {
+    setInputState(vrefEl,'inp-ok');
+  }
+
+  // R1 inputs — all messages go to shared #hint-r1 at the bottom of the section
+  const r1Hint=document.getElementById('hint-r1');
+  function setR1Hint(msg){
+    if(r1Hint){ r1Hint.textContent=msg||''; r1Hint.classList.toggle('visible',!!msg); }
+  }
+  if(r1Mode==='fixed'){
+    const el=document.getElementById('r-fixed');
+    const pool=buildPool();
+    const v=parseFloat(el.value);
+    if(el.value===''){
+      setInputState(el,'inp-warn'); setR1Hint('');
+    } else if(isNaN(v)||v<=0){
+      setInputState(el,'inp-error'); setR1Hint('Must be a positive value.');
+    } else if(!inPool(pool,v)){
+      setInputState(el,'inp-error'); setR1Hint('Value not found in the selected resistor pool.');
+    } else {
+      setInputState(el,'inp-ok'); setR1Hint('');
+    }
+    setInputState(document.getElementById('r-min'),null);
+    setInputState(document.getElementById('r-max'),null);
+  } else {
+    setInputState(document.getElementById('r-fixed'),null);
+    const minEl=document.getElementById('r-min');
+    const maxEl=document.getElementById('r-max');
+    const rMin=parseFloat(minEl.value);
+    const rMax=parseFloat(maxEl.value);
+    const minEmpty=minEl.value==='', maxEmpty=maxEl.value==='';
+    const minBad=!minEmpty&&(isNaN(rMin)||rMin<=0);
+    const maxBad=!maxEmpty&&(isNaN(rMax)||rMax<=0);
+    const orderBad=!minEmpty&&!maxEmpty&&!minBad&&!maxBad&&rMin>=rMax;
+
+    setInputState(minEl, minEmpty?'inp-warn': minBad?'inp-error': orderBad?'inp-error':'inp-ok');
+    setInputState(maxEl, maxEmpty?'inp-warn': maxBad?'inp-error': orderBad?'inp-error':'inp-ok');
+
+    if(orderBad)          setR1Hint('Maximum value must be greater than the minimum value.');
+    else if(minBad)       setR1Hint('Minimum must be a positive value.');
+    else if(maxBad)       setR1Hint('Maximum must be a positive value.');
+    else                  setR1Hint('');
+  }
+
+  // Vout inputs
+  const vrefVal=parseFloat(vrefEl.value);
+  const vouts=voutValues.filter(v=>!isNaN(v));
+  const hasDupe=new Set(vouts).size!==vouts.length;
+  const voutHints=document.getElementById('vout-error-hints');
+  const voutMsgs=[];
+
+  const inputEls=document.querySelectorAll('#vout-tbody tr:first-child input[data-idx]');
+  inputEls.forEach(el=>{
+    const idx=parseInt(el.dataset.idx);
+    const isLastEmpty=isNaN(voutValues[idx]);
+    if(isLastEmpty){
+      setInputState(el, vouts.length===0 ? 'inp-warn' : null);
+      return;
+    }
+    const v=voutValues[idx];
+    if(isNaN(v)||v<=0){
+      setInputState(el,'inp-error');
+      voutMsgs.push(`Vout ${idx+1}: must be a positive voltage.`);
+    } else if(!isNaN(vrefVal)&&vrefVal>0&&v<=vrefVal){
+      setInputState(el,'inp-error');
+      voutMsgs.push(`Vout ${idx+1}: must be greater than Vref (${vrefVal}V).`);
+    } else if(hasDupe&&vouts.filter(x=>x===v).length>1){
+      setInputState(el,'inp-error');
+      voutMsgs.push(`Vout ${idx+1}: duplicate value (${v}V).`);
+    } else {
+      setInputState(el,'inp-ok');
+    }
+  });
+
+  // Render Vout error hints below the table
+  if(voutHints){
+    voutHints.innerHTML=voutMsgs.map(m=>`<div class="inp-hint">${m}</div>`).join('');
+  }
+}
+
+// ── Schematic ─────────────────────────────────────────────────────────────────
+// Layout: cards on the left, wire+resistors in centre, FB/SW annotations on the right.
+// Card width: 160px. Gap from card to wire: 16px. CX is the wire centre x.
+// Total SVG width = CARD_W + GAP + wire section width (220px) = 396px
+function drawSchematic(best,voutsDesc,vref){
+  const svg=document.getElementById('schematic-svg');
+  const dk=window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const stroke=dk?'#666':'#777',tSec=dk?'#888':'#999';
+  const accent=dk?'#7f99e8':'#2a52be',swColor=dk?'#1D9E75':'#0f6e56';
+
+  // Dimensions
+  const CARD_W=164, GAP=20;
+  const CX=CARD_W+GAP+50; // wire centre x
+  const RH=28, RW=90, segGap=56, topPad=44, botPad=32;
+  const SVG_W=CARD_W+GAP+50+RW/2+120; // total width
+  const nSegs=best.segments.length;
+  const totalH=topPad+nSegs*(RH+segGap)+botPad;
+  svg.setAttribute('viewBox',`0 0 ${SVG_W} ${totalH}`);
+  svg.setAttribute('width','100%');
+  svg.style.maxWidth=SVG_W+'px';
+
+  // CSS vars resolved for foreignObject cards
+  const surface2=dk?'#252420':'#f0efe9';
+  const border=dk?'rgba(255,255,255,0.10)':'rgba(0,0,0,0.12)';
+  const textPri=dk?'#e8e6e0':'#1a1917';
+  const textSec=dk?'#9a9890':'#5a5855';
+  const textTer=dk?'#5a5855':'#9a9895';
+
+  // err chip colours per tier
+  function chipColors(e){
+    if(e<0.1) return dk?{bg:'#04342c',fg:'#1d9e75'}:{bg:'#e1f5ee',fg:'#0f6e56'};
+    if(e<0.5) return dk?{bg:'#412402',fg:'#ef9f27'}:{bg:'#faeeda',fg:'#854f0b'};
+    if(e<2.0) return dk?{bg:'#501313',fg:'#e24b4a'}:{bg:'#fcebeb',fg:'#a32d2d'};
+    return dk?{bg:'#501313',fg:'#e24b4a'}:{bg:'#fcebeb',fg:'#a32d2d'};
+  }
+
+  let out='';
+
+  // Vout power-rail symbol at top
+  // Two horizontal bars; wire descends from bottom bar down to R1; label above top bar
+  const vbarY2=8, vbarY1=14;  // top bar, bottom bar
+  out+=`<text x="${CX}" y="${vbarY2-2}" text-anchor="middle" font-size="9" fill="${stroke}" font-family="monospace">Vout</text>`;
+  out+=`<line x1="${CX-9}"  y1="${vbarY2}" x2="${CX+9}"  y2="${vbarY2}" stroke="${stroke}" stroke-width="2"/>`;
+  out+=`<line x1="${CX-14}" y1="${vbarY1}" x2="${CX+14}" y2="${vbarY1}" stroke="${stroke}" stroke-width="2"/>`;
+  out+=`<line x1="${CX}" y1="${vbarY1}" x2="${CX}" y2="${topPad}" stroke="${stroke}" stroke-width="1.5"/>`;
+
+  let y=topPad;
+  for(let i=0;i<nSegs;i++){
+    const seg=best.segments[i];
+    const col=i===0?accent:stroke;
+    const isLast=(i===nSegs-1);
+
+    // Wire into resistor
+    out+=`<line x1="${CX}" y1="${y}" x2="${CX}" y2="${y+6}" stroke="${stroke}" stroke-width="1.5"/>`;
+    // Resistor box
+    out+=`<rect x="${CX-RW/2}" y="${y+6}" width="${RW}" height="${RH}" rx="5" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+    out+=`<text x="${CX}" y="${y+6+RH/2+4}" text-anchor="middle" font-size="10" fill="${col}" font-family="monospace">R${i+1} = ${fmtR(seg)}</text>`;
+    // Wire out of resistor
+    out+=`<line x1="${CX}" y1="${y+6+RH}" x2="${CX}" y2="${y+6+RH+segGap}" stroke="${stroke}" stroke-width="1.5"/>`;
+
+    // FB tap: midpoint of wire between R1 and R2
+    if(i===0){
+      const tapY=y+6+RH+segGap/2;
+      out+=`<circle cx="${CX}" cy="${tapY}" r="4" fill="${accent}"/>`;
+      out+=`<line x1="${CX}" y1="${tapY}" x2="${CX+RW/2+10}" y2="${tapY}" stroke="${accent}" stroke-width="1" stroke-dasharray="3,2"/>`;
+      out+=`<text x="${CX+RW/2+14}" y="${tapY+4}" font-size="9" fill="${accent}" font-family="monospace">FB = ${vref}V</text>`;
+    }
+
+    // For R2, R3 etc: card on the left + SW node on the right
+    // SW node: halfway between bottom of this resistor and top of next = midpoint of gap wire
+    // Skip SW for the last segment (it connects directly to GND)
+    if(i>=1){
+      const swIdx=i-1;
+      const nodeY=y+6+RH+segGap/2;  // midpoint of the wire below this resistor
+      const vr=best.voutResults[swIdx];
+      const cc=chipColors(vr.err);
+
+      // Card: vertically centred on the resistor box midpoint
+      const cardMidY=y+6+RH/2;
+      const CARD_H=58;
+      const cardY=cardMidY-CARD_H/2;
+      out+=`<line x1="${CARD_W}" y1="${cardMidY}" x2="${CX-RW/2-2}" y2="${cardMidY}" stroke="${border}" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+      // Card border highlights the highest-error output
+      const isWorstCard=(vr.err===best.voutResults.reduce((mx,r)=>r.err>mx?r.err:mx,0));
+      const cardBorder=isWorstCard?`1px solid ${cc.fg}`:`1px solid ${border}`;
+
+      // foreignObject card
+      out+=`<foreignObject x="0" y="${cardY}" width="${CARD_W}" height="${CARD_H}">`;
+      out+=`<div xmlns="http://www.w3.org/1999/xhtml" style="`;
+      out+=`width:${CARD_W}px;height:${CARD_H}px;`;
+      out+=`background:${surface2};border:${cardBorder};border-radius:8px;`;
+      out+=`padding:8px 10px;font-family:monospace;box-sizing:border-box;`;
+      out+=`display:flex;flex-direction:column;justify-content:center;gap:3px;">`;
+      out+=`<div style="font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:${textTer}">`;
+      out+=`Vout${swIdx+1} <span style="font-weight:400;text-transform:none;font-size:9px">(target ${vr.vTarget}V)</span></div>`;
+      out+=`<div style="font-size:14px;font-weight:600;color:${textPri}">${vr.vActual.toFixed(4)} V</div>`;
+      out+=`<div><span style="display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:${cc.bg};color:${cc.fg}">${vr.err.toFixed(3)}%</span></div>`;
+      out+=`</div></foreignObject>`;
+
+      // SW node — omit for last segment (tied to GND)
+      if(!isLast){
+        out+=`<circle cx="${CX}" cy="${nodeY}" r="4" fill="${swColor}"/>`;
+        const swX=CX+RW/2+10;
+        out+=`<line x1="${CX}" y1="${nodeY}" x2="${swX}" y2="${nodeY}" stroke="${swColor}" stroke-width="1"/>`;
+        out+=`<line x1="${swX}" y1="${nodeY}" x2="${swX+10}" y2="${nodeY}" stroke="${swColor}" stroke-width="1"/>`;
+        out+=`<circle cx="${swX+12}" cy="${nodeY}" r="2.5" fill="none" stroke="${swColor}" stroke-width="1"/>`;
+        out+=`<text x="${swX+18}" y="${nodeY+4}" font-size="9" fill="${swColor}" font-family="monospace">SW${swIdx+1}  ${vr.vTarget}V</text>`;
+      }
+    }
+
+    y+=RH+segGap;
+  }
+
+  // GND symbol
+  const gY=y+4;
+  out+=`<line x1="${CX-18}" y1="${gY}" x2="${CX+18}" y2="${gY}" stroke="${stroke}" stroke-width="1.5"/>`;
+  out+=`<line x1="${CX-11}" y1="${gY+5}" x2="${CX+11}" y2="${gY+5}" stroke="${stroke}" stroke-width="1"/>`;
+  out+=`<line x1="${CX-5}"  y1="${gY+10}" x2="${CX+5}"  y2="${gY+10}" stroke="${stroke}" stroke-width="0.8"/>`;
+
+  svg.innerHTML=out;
+}
+
+// ── Persistence (localStorage) ───────────────────────────────────────────────
+const STORAGE_KEY='dcdc_divider_state';
+
+function saveState(){
+  try{
+    const filledIdxs=voutValues.map((v,i)=>({v,i})).filter(x=>!isNaN(x.v));
+    const state={
+      vref: document.getElementById('v-ref').value,
+      r1Mode,
+      rFixed: document.getElementById('r-fixed').value,
+      rMin:   document.getElementById('r-min').value,
+      rMax:   document.getElementById('r-max').value,
+      activeSeries: Object.assign({},activeState),
+      voutValues: filledIdxs.map(x=>x.v),
+      voutWeights: filledIdxs.map(x=>voutWeights[x.i]??1.0),
+      optMode,
+    };
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+  }catch(e){}
+}
+
+function loadState(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return null;
+    return JSON.parse(raw);
+  }catch(e){return null;}
+}
+
+function applyState(s){
+  if(!s)return;
+
+  // Vref
+  if(s.vref) document.getElementById('v-ref').value=s.vref;
+
+  // Series toggles
+  if(s.activeSeries){
+    for(const name of Object.keys(activeState)){
+      if(s.activeSeries[name]!==undefined) activeState[name]=s.activeSeries[name];
+    }
+  }
+
+  // R1 mode
+  if(s.r1Mode){
+    r1Mode=s.r1Mode;
+    document.querySelectorAll('#r1-mode-ctrl .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.m===r1Mode));
+    document.getElementById('r1-fixed-input').style.display=r1Mode==='fixed'?'flex':'none';
+    document.getElementById('r1-range-input').style.display=r1Mode==='range'?'flex':'none';
+  }
+  if(s.rFixed) document.getElementById('r-fixed').value=s.rFixed;
+  if(s.rMin)   document.getElementById('r-min').value=s.rMin;
+  if(s.rMax)   document.getElementById('r-max').value=s.rMax;
+
+  // Vout values + weights — restore filled values + trailing empty slot
+  if(s.voutValues&&s.voutValues.length>0){
+    voutValues=[...s.voutValues,NaN];
+    voutWeights=[...(s.voutWeights||s.voutValues.map(()=>1.0)),1.0];
+  }
+
+  // Optimisation mode
+  if(s.optMode){
+    optMode=s.optMode;
+    document.querySelectorAll('#opt-mode-ctrl .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.o===optMode));
+    document.body.className=optMode==='wav'?'mode-wav':'';
+  }
+}
+
+// Attach saveState to all inputs and toggles after init
+function attachPersistence(){
+  ['v-ref','r-fixed','r-min','r-max'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',saveState);
+  });
+  document.getElementById('r1-mode-ctrl').addEventListener('click',saveState);
+  document.getElementById('opt-mode-ctrl').addEventListener('click',saveState);
+  document.getElementById('series-toggles').addEventListener('change',saveState);
+  document.getElementById('vout-table').addEventListener('input',saveState);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+const savedState=loadState();
+if(savedState&&savedState.voutValues&&savedState.voutValues.length>0){
+  voutValues=[...savedState.voutValues,NaN];
+}
+applyState(savedState);  // restore activeState before rendering toggles
+renderToggles();
+updatePoolCount();
+renderVoutTable();
+attachPersistence();
+calc();
+validateInputs();
+</script>
+</body>
+</html>
