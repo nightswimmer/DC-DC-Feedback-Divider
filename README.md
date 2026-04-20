@@ -48,8 +48,10 @@ Error tiers in the UI: green <0.1 %, yellow <0.5 %, red ≥0.5 %.
 
 ## Usage
 
-Open `DC-DC-Feedback-Divider.html` in any modern browser. No build step, no
-dependencies, no server — everything is self-contained in a single HTML file.
+Open `index.html` in any modern browser. No build step, no dependencies, no
+server — everything is self-contained in a single HTML file. The file is
+named `index.html` so it will also load by default on any static host
+(GitHub Pages, local HTTP server, etc.).
 
 1. Enter the IC's **Vref** (feedback reference voltage).
 2. Enter one or more **desired output voltages**. A new empty slot is added
@@ -63,7 +65,7 @@ dependencies, no server — everything is self-contained in a single HTML file.
 
 ## Repository layout
 
-- `DC-DC-Feedback-Divider.html` — the application (self-contained).
+- `index.html` — the application (self-contained).
 - `PROJECT_INSTRUCTIONS.md` — context for Claude Code / Claude-assisted
   development sessions.
 - `CLAUDE.md` — collaboration rules for Claude.

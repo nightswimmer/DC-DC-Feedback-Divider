@@ -44,7 +44,8 @@ that hit one or more desired output voltages as closely as possible.
 
 ## Architecture
 
-- Single self-contained file: `DC-DC-Feedback-Divider.html`. No build step, no
+- Single self-contained file: `index.html` (named `index.html` so a static host
+  or a direct folder-open serves the calculator by default). No build step, no
   dependencies, no external assets. Open in any modern browser to run.
 - All CSS and JS live inline in the HTML.
 - No server, no analytics, no network calls.
@@ -76,10 +77,10 @@ Error tiers: green <0.1 %, yellow <0.5 %, red ≥0.5 %.
   reflect the current state, then give an overview + a suggested commit
   name/description. The user does the commit.
 
-## Current state (2026-04-19)
+## Current state (2026-04-20)
 
-- Initial working version committed (commit `007c05e`).
-- `DC-DC-Feedback-Divider.html` exists on disk but was still untracked as of
-  the latest session — it is the full, working calculator described above.
-- No known bugs at time of writing. Next commit should add the HTML file plus
-  the refreshed `PROJECT_INSTRUCTIONS.md` and `README.md`.
+- Working calculator is committed and on the `main` branch.
+- Main file renamed from `DC-DC-Feedback-Divider.html` to `index.html` so it
+  is served by default when the folder is opened directly or hosted as a
+  static site (e.g. GitHub Pages).
+- No known bugs at time of writing.
